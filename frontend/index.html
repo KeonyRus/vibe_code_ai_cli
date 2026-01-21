@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Airganizator - LLM Orchestrator</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">Airganizator</span>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-icon btn-zeusovich" id="btn-zeusovich" title="Zeusovich - AI Orchestrator">⚡</button>
+                <button class="btn btn-icon" id="btn-settings" title="Settings">⚙️</button>
+                <button class="btn btn-primary" id="btn-add-project">+ Add Project</button>
+            </div>
+        </header>
+
+        <!-- Main content -->
+        <div class="main">
+            <!-- Sidebar with projects -->
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-header-top">
+                        <h3>Projects</h3>
+                        <button class="btn-collapse" id="btn-collapse-sidebar" title="Collapse sidebar">◀</button>
+                    </div>
+                    <div class="sidebar-search">
+                        <input type="text" id="project-search" placeholder="Search projects..." autocomplete="off">
+                    </div>
+                </div>
+                <div class="projects-list" id="projects-list">
+                    <!-- Projects will be rendered here -->
+                </div>
+            </aside>
+
+            <!-- Collapsed sidebar toggle -->
+            <button class="btn-expand-sidebar" id="btn-expand-sidebar" title="Expand sidebar">▶</button>
+
+            <!-- Terminal area -->
+            <main class="terminal-area">
+                <div class="terminal-header" id="terminal-header">
+                    <div class="terminal-title">
+                        <span id="current-project-name">Select a project</span>
+                        <span class="terminal-status" id="terminal-status"></span>
+                    </div>
+                    <div class="terminal-controls">
+                        <div class="mode-selector" id="mode-selector">
+                            <button class="mode-btn" data-mode="planning">📋 Plan</button>
+                            <button class="mode-btn active" data-mode="development">💻 Dev</button>
+                            <button class="mode-btn" data-mode="bugfix">🐛 Fix</button>
+                        </div>
+                        <div class="terminal-actions">
+                            <button class="btn btn-sm" id="btn-env" title="Edit .env">📄 .env</button>
+                            <button class="btn btn-sm btn-success" id="btn-start">▶ Start</button>
+                            <button class="btn btn-sm btn-danger" id="btn-stop" disabled>⏹ Stop</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="terminal-tabs">
+                    <button class="terminal-tab active" data-tab="llm">💻 LLM</button>
+                    <button class="terminal-tab" data-tab="console">⌨️ Console</button>
+                </div>
+                <div class="terminal-container" id="terminal-container">
+                    <div id="terminal" class="terminal-pane active"></div>
+                    <div id="console" class="terminal-pane"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal: Add/Edit Project -->
+    <div class="modal" id="modal-project">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-project-title">Add Project</h2>
+                <button class="modal-close" id="modal-project-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-project">
+                    <input type="hidden" id="project-id">
+                    <div class="form-group">
+                        <label for="project-name">Name</label>
+                        <input type="text" id="project-name" required placeholder="My Project">
+                    </div>
+                    <div class="form-group">
+                        <label for="project-path">Path</label>
+                        <input type="text" id="project-path" required placeholder="D:/projects/my-project">
+                    </div>
+                    <div class="form-group">
+                        <label for="project-llm">LLM CLI</label>
+                        <select id="project-llm">
+                            <option value="claude">Claude Code</option>
+                            <option value="codex">Codex</option>
+                            <option value="gemini">Gemini</option>
+                            <option value="aider">Aider</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="custom-command-group" style="display:none">
+                        <label for="project-llm-command">Custom Command</label>
+                        <input type="text" id="project-llm-command" placeholder="my-llm-cli">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="project-use-global-key" checked>
+                            Use global API key
+                        </label>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn" id="btn-cancel-project">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Settings -->
+    <div class="modal" id="modal-settings">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="modal-close" id="modal-settings-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="tabs">
+                    <button class="tab active" data-tab="general">General</button>
+                    <button class="tab" data-tab="api-keys">API Keys</button>
+                </div>
+                <div class="tab-content" id="tab-general">
+                    <div class="form-group">
+                        <label for="settings-base-path">Base Projects Path</label>
+                        <input type="text" id="settings-base-path" placeholder="D:/projects">
+                    </div>
+                    <div class="form-group">
+                        <label for="settings-default-llm">Default LLM</label>
+                        <select id="settings-default-llm">
+                            <option value="claude">Claude Code</option>
+                            <option value="codex">Codex</option>
+                            <option value="gemini">Gemini</option>
+                            <option value="aider">Aider</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="settings-default-mode">Default Mode</label>
+                        <select id="settings-default-mode">
+                            <option value="planning">Planning</option>
+                            <option value="development">Development</option>
+                            <option value="bugfix">Bug Fix</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="tab-content" id="tab-api-keys" style="display:none">
+                    <div class="form-group">
+                        <label for="api-key-anthropic">Anthropic API Key</label>
+                        <input type="password" id="api-key-anthropic" placeholder="sk-ant-...">
+                    </div>
+                    <div class="form-group">
+                        <label for="api-key-openai">OpenAI API Key</label>
+                        <input type="password" id="api-key-openai" placeholder="sk-...">
+                    </div>
+                    <div class="form-group">
+                        <label for="api-key-google">Google API Key</label>
+                        <input type="password" id="api-key-google" placeholder="AIza...">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-primary" id="btn-save-settings">Save Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: .env Editor -->
+    <div class="modal" id="modal-env">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>.env Editor - <span id="env-project-name"></span></h2>
+                <button class="modal-close" id="modal-env-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="env-path" id="env-path"></div>
+                <textarea id="env-content" rows="15" placeholder="KEY=value"></textarea>
+                <div class="form-actions">
+                    <button type="button" class="btn" id="btn-cancel-env">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="btn-save-env">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Zeusovich Terminal Panel -->
+    <div class="zeusovich-panel" id="zeusovich-panel">
+        <div class="zeusovich-header">
+            <div class="zeusovich-title">
+                <span class="zeusovich-icon">⚡</span>
+                <span>Zeusovich</span>
+                <span class="zeusovich-subtitle">Global CLI</span>
+            </div>
+            <div class="zeusovich-actions">
+                <button class="btn btn-sm btn-success" id="btn-zeusovich-start" title="Start">▶</button>
+                <button class="btn btn-sm btn-warning" id="btn-zeusovich-restart" title="Restart" style="display:none">🔄</button>
+                <button class="btn btn-sm btn-danger" id="btn-zeusovich-stop" title="Stop" disabled>⏹</button>
+                <button class="zeusovich-close" id="zeusovich-close">&times;</button>
+            </div>
+        </div>
+        <div class="zeusovich-warning" id="zeusovich-warning" style="display:none">
+            ⚠️ <span id="zeusovich-warning-text">New projects added. Restart to access them.</span>
+        </div>
+        <div class="zeusovich-terminal" id="zeusovich-terminal"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/terminal.js"></script>
+    <script src="/static/js/console.js"></script>
+    <script src="/static/js/zeusovich.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,48 +1,48 @@
 # Airganizator
 
-**LLM CLI Orchestrator** — веб-интерфейс для управления несколькими AI-ассистентами для кодинга.
+**LLM CLI Orchestrator** — web interface for managing multiple AI coding assistants.
 
-## Зачем это нужно?
+## Why?
 
-Если вы работаете с несколькими проектами и используете AI-ассистенты (Claude Code, Codex, Gemini CLI), то знаете боль:
-- **Куча открытых терминалов** — для каждого проекта свой, легко запутаться
-- **Постоянное переключение** — alt+tab между окнами отнимает время и фокус
-- **Нет единой картины** — не видно какой AI сейчас работает, а какой ждёт ввода
+If you work with multiple projects using AI assistants (Claude Code, Codex, Gemini CLI), you know the pain:
+- **Too many terminals** — one for each project, easy to get lost
+- **Constant switching** — alt+tab between windows kills focus and flow
+- **No overview** — can't see which AI is working and which is waiting for input
 
-**Airganizator решает это:**
+**Airganizator fixes this:**
 
-| Проблема | Решение |
-|----------|---------|
-| Много терминалов | Все проекты в одном окне браузера |
-| Не видно статус AI | Индикация: AI печатает или ждёт (подсветка карточки) |
-| Разные CLI инструменты | Единый интерфейс для Claude, Codex, Gemini, Aider |
-| Переключение контекста | Один клик — и вы в другом проекте |
-| AI не видит другие проекты | Zeusovich — глобальный CLI с доступом ко всем проектам |
+| Problem | Solution |
+|---------|----------|
+| Too many terminals | All projects in one browser window |
+| Can't see AI status | Visual indicators: AI typing or idle (card highlighting) |
+| Different CLI tools | Unified interface for Claude, Codex, Gemini, Aider |
+| Context switching | One click — you're in another project |
+| AI can't see other projects | Zeusovich — global CLI with access to all projects |
 
-**Главные плюсы:**
-- Видите все проекты и их статусы одновременно
-- Мгновенное переключение между проектами
-- Знаете когда AI закончил отвечать (даже если вы в другом проекте)
-- Один инструмент вместо десятка терминалов
+**Key benefits:**
+- See all projects and their statuses at once
+- Instant switching between projects
+- Know when AI finished responding (even if you're in another project)
+- One tool instead of a dozen terminals
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-## Возможности
+## Features
 
-- **Мульти-проектность** — добавляйте неограниченное количество проектов
-- **Разные LLM CLI** — Claude Code, Codex, Gemini CLI, Aider или кастомная команда
-- **Полноценный терминал** — PTY с поддержкой цветов, интерактивных команд
-- **Режимы работы** — Planning, Development, Bugfix с разными системными промптами
-- **Консоль проекта** — отдельный PowerShell терминал для каждого проекта
-- **Редактор .env** — редактируйте переменные окружения прямо из интерфейса
-- **Git интеграция** — отображение ветки и ссылки на репозиторий
-- **Zeusovich** — глобальный CLI с доступом ко всем проектам через junction links
-- **Статус LLM** — индикация когда AI печатает или закончил ответ
-- **Drag & Drop** — перетаскивание проектов для изменения порядка
+- **Multi-project** — add unlimited projects
+- **Multiple LLM CLIs** — Claude Code, Codex, Gemini CLI, Aider or custom command
+- **Full terminal** — PTY with colors, interactive commands support
+- **Work modes** — Planning, Development, Bugfix with different system prompts
+- **Project console** — separate PowerShell terminal for each project
+- **.env editor** — edit environment variables right from the interface
+- **Git integration** — branch display and repository links
+- **Zeusovich** — global CLI with access to all projects via junction links
+- **LLM status** — indicators when AI is typing or finished responding
+- **Drag & Drop** — reorder projects by dragging
 
-## Скриншот
+## Screenshot
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -61,101 +61,101 @@
 └──────────────┴──────────────────────────────────────────────┘
 ```
 
-## Установка
+## Installation
 
-### Требования
+### Requirements
 
 - Python 3.10+
-- Windows (для pywinpty)
-- Установленные CLI: `claude`, `codex`, `gemini` или `aider`
+- Windows (for pywinpty)
+- Installed CLIs: `claude`, `codex`, `gemini` or `aider`
 
-### Шаги
+### Steps
 
 ```bash
-# Клонируйте репозиторий
+# Clone the repository
 git clone https://github.com/KeonyRus/vibe_code_ai_cli.git
 cd vibe_code_ai_cli
 
-# Создайте виртуальное окружение
+# Create virtual environment
 python -m venv venv
 venv\Scripts\activate
 
-# Установите зависимости
+# Install dependencies
 pip install -r requirements.txt
 
-# Запустите
+# Run
 python main.py
 ```
 
-Откройте в браузере: **http://127.0.0.1:6680**
+Open in browser: **http://127.0.0.1:6680**
 
-## Структура проекта
+## Project Structure
 
 ```
 airganizator/
 ├── backend/
-│   ├── app.py              # FastAPI приложение
-│   ├── config.py           # Конфигурация и модели
-│   ├── database.py         # SQLite для истории
-│   ├── process_manager.py  # Управление PTY процессами
-│   ├── workspace.py        # Junction links для Zeusovich
+│   ├── app.py              # FastAPI application
+│   ├── config.py           # Configuration and models
+│   ├── database.py         # SQLite for history
+│   ├── process_manager.py  # PTY process management
+│   ├── workspace.py        # Junction links for Zeusovich
 │   └── routers/
-│       ├── projects.py     # API проектов
-│       ├── terminal.py     # WebSocket терминала
-│       ├── settings.py     # Настройки
-│       ├── env_editor.py   # Редактор .env
-│       └── zeusovich.py    # Глобальный CLI
+│       ├── projects.py     # Projects API
+│       ├── terminal.py     # Terminal WebSocket
+│       ├── settings.py     # Settings
+│       ├── env_editor.py   # .env editor
+│       └── zeusovich.py    # Global CLI
 ├── frontend/
 │   ├── index.html
 │   ├── css/style.css
 │   └── js/
-│       ├── api.js          # API клиент
-│       ├── app.js          # Основная логика
-│       ├── terminal.js     # LLM терминал
-│       ├── console.js      # Консоль проекта
-│       └── zeusovich.js    # Zeusovich терминал
-├── prompts/                # Системные промпты для режимов
-├── main.py                 # Точка входа
+│       ├── api.js          # API client
+│       ├── app.js          # Main logic
+│       ├── terminal.js     # LLM terminal
+│       ├── console.js      # Project console
+│       └── zeusovich.js    # Zeusovich terminal
+├── prompts/                # System prompts for modes
+├── main.py                 # Entry point
 └── requirements.txt
 ```
 
-## Использование
+## Usage
 
-### Добавление проекта
+### Adding a project
 
-1. Нажмите **+ Add Project**
-2. Укажите имя и путь к проекту
-3. Выберите LLM CLI (Claude, Codex, Gemini, Aider)
-4. Нажмите **Save**
+1. Click **+ Add Project**
+2. Enter name and path to the project
+3. Select LLM CLI (Claude, Codex, Gemini, Aider)
+4. Click **Save**
 
-### Работа с терминалом
+### Working with terminal
 
-- **▶ Start** — запустить LLM CLI
-- **⏹ Stop** — остановить процесс
-- Переключайтесь между **LLM** и **Console** табами
-- Меняйте режим работы: **Plan**, **Dev**, **Fix**
+- **▶ Start** — launch LLM CLI
+- **⏹ Stop** — stop the process
+- Switch between **LLM** and **Console** tabs
+- Change work mode: **Plan**, **Dev**, **Fix**
 
-### Zeusovich (глобальный CLI)
+### Zeusovich (global CLI)
 
-Нажмите **⚡** в хедере для открытия Zeusovich — Claude Code с доступом ко всем вашим проектам через junction links.
+Click **⚡** in the header to open Zeusovich — Claude Code with access to all your projects via junction links.
 
-## Конфигурация
+## Configuration
 
-При первом запуске создаются папки:
-- `config/` — настройки и проекты (YAML)
-- `data/` — база данных истории (SQLite)
-- `zeusovich-workspace/` — junction links на проекты
+On first launch, these folders are created:
+- `config/` — settings and projects (YAML)
+- `data/` — history database (SQLite)
+- `zeusovich-workspace/` — junction links to projects
 
-## Технологии
+## Tech Stack
 
 - **Backend**: FastAPI, WebSocket, pywinpty, aiosqlite
 - **Frontend**: Vanilla JS, xterm.js
 - **Storage**: YAML configs, SQLite history
 
-## Лицензия
+## License
 
 MIT License
 
-## Автор
+## Author
 
 [@KeonyRus](https://github.com/KeonyRus)

@@ -38,3 +38,6 @@ nul
 # Temp
 *.tmp
 *.bak
+
+# Native desktop app (development)
+native/

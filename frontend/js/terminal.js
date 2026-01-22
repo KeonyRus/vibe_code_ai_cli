@@ -67,6 +67,41 @@ class TerminalManager {
             }
         });
 
+        // Handle Ctrl+C (copy) and Ctrl+V (paste)
+        this.terminal.attachCustomKeyEventHandler((e) => {
+            // Ctrl+C - copy if there's selection, otherwise send to terminal
+            if (e.ctrlKey && e.key === 'c' && e.type === 'keydown') {
+                const selection = this.terminal.getSelection();
+                if (selection) {
+                    navigator.clipboard.writeText(selection);
+                    return false; // Prevent default
+                }
+                // No selection - let it pass through as Ctrl+C to terminal
+                return true;
+            }
+
+            // Ctrl+V - paste
+            if (e.ctrlKey && e.key === 'v' && e.type === 'keydown') {
+                navigator.clipboard.readText().then(text => {
+                    if (text && this.ws && this.ws.readyState === WebSocket.OPEN) {
+                        this.ws.send(JSON.stringify({
+                            type: 'input',
+                            data: text
+                        }));
+                    }
+                });
+                return false; // Prevent default
+            }
+
+            // Ctrl+A - select all
+            if (e.ctrlKey && e.key === 'a' && e.type === 'keydown') {
+                this.terminal.selectAll();
+                return false;
+            }
+
+            return true;
+        });
+
         // Welcome message
         this.terminal.writeln('\x1b[1;34m=== Airganizator ===\x1b[0m');
         this.terminal.writeln('Select a project from the sidebar to start.');

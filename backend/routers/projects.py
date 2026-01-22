@@ -271,3 +271,22 @@ async def restart_project(project_id: str):
 async def list_running():
     """Получение списка запущенных проектов"""
     return {"running": process_manager.get_all_running()}
+
+
+@router.post("/{project_id}/open-folder")
+async def open_project_folder(project_id: str):
+    """Открыть папку проекта в Explorer"""
+    import subprocess
+
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    path = Path(project.path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Folder not found")
+
+    # Open in Windows Explorer
+    subprocess.Popen(f'explorer "{path}"', shell=True)
+
+    return {"status": "ok", "path": str(path)}

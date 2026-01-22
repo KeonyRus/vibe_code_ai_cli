@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentProject = null;
     let settings = {};
     let draggedCard = null;
+    let statusPollInterval = null;
 
     // Elements
     const projectsList = document.getElementById('projects-list');
@@ -35,6 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
     consoleManager.init();
     loadProjects();
     loadSettings();
+
+    // Start status polling for all projects
+    startStatusPolling();
 
     // Console status handler
     consoleManager.onStatusChange = (running) => {
@@ -219,6 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     ` : ''}
                 </div>
                 <div class="project-actions">
+                    <button class="btn btn-sm btn-icon" onclick="openFolder('${p.id}')" title="Open folder">📁</button>
                     <button class="btn btn-sm" onclick="editProject('${p.id}')">Edit</button>
                     <button class="btn btn-sm btn-danger" onclick="deleteProject('${p.id}')">Delete</button>
                 </div>
@@ -366,6 +371,15 @@ document.addEventListener('DOMContentLoaded', () => {
             project.llm === 'custom' ? 'block' : 'none';
 
         modalProject.classList.add('active');
+    };
+
+    // Open project folder in Explorer
+    window.openFolder = async (id) => {
+        try {
+            await fetch(`/api/projects/${id}/open-folder`, { method: 'POST' });
+        } catch (err) {
+            console.error('Failed to open folder:', err);
+        }
     };
 
     // Delete project
@@ -701,6 +715,55 @@ document.addEventListener('DOMContentLoaded', () => {
             consoleManager.fit();
         }, 300);
     });
+
+    // ==================== STATUS POLLING ====================
+
+    function startStatusPolling() {
+        // Poll every 2 seconds
+        statusPollInterval = setInterval(updateProjectStatuses, 2000);
+        // Also run immediately
+        updateProjectStatuses();
+    }
+
+    async function updateProjectStatuses() {
+        try {
+            const response = await fetch('/api/projects/running/list');
+            const data = await response.json();
+            const runningIds = new Set(data.running || []);
+
+            // Update all project cards
+            document.querySelectorAll('.project-card').forEach(card => {
+                const projectId = card.dataset.id;
+                const statusDot = card.querySelector('.project-status');
+                if (!statusDot) return;
+
+                const isRunning = runningIds.has(projectId);
+
+                if (isRunning) {
+                    statusDot.classList.add('running');
+                } else {
+                    statusDot.classList.remove('running');
+                }
+            });
+
+            // Also update projects array
+            projects.forEach(p => {
+                p.running = runningIds.has(p.id);
+            });
+
+        } catch (err) {
+            // Silent fail - polling will retry
+        }
+    }
+
+    // Clean up on page unload
+    window.addEventListener('beforeunload', () => {
+        if (statusPollInterval) {
+            clearInterval(statusPollInterval);
+        }
+    });
+
+    // ==================== END STATUS POLLING ====================
 
     // Utility
     function escapeHtml(text) {

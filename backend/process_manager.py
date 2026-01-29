@@ -2,6 +2,7 @@
 Process Manager - управление PTY процессами CLI LLM
 """
 import asyncio
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Optional, Callable, Awaitable
@@ -9,6 +10,70 @@ import winpty
 
 from .config import ProjectConfig, WorkMode
 from .database import create_session, end_session, add_terminal_output
+
+
+# Паттерны для определения состояния LLM CLI
+# attention - требует внимания пользователя (вопрос, ошибка)
+ATTENTION_PATTERNS = [
+    r'\(y/n\)',
+    r'\[Y/n\]',
+    r'\[y/N\]',
+    r'\? \(Y/n\)',
+    r'\? \(y/N\)',
+    r'Do you want to',
+    r'Would you like to',
+    r'Proceed\?',
+    r'Continue\?',
+    r'Permission denied',
+    r'Error:',
+    r'error:',
+    r'ERROR',
+    r'failed',
+    r'Failed',
+    r'FAILED',
+    r'denied',
+    r'Cannot',
+    r'cannot',
+    r'not found',
+    r'Not found',
+]
+ATTENTION_REGEX = re.compile('|'.join(ATTENTION_PATTERNS), re.IGNORECASE)
+
+# Паттерны промпта - LLM ждёт ввода
+PROMPT_PATTERNS = [
+    r'[❯>]\s*$',           # Промпт в конце строки
+    r'^\s*>\s*$',          # Просто > на строке
+    r'\n>\s*$',            # > после переноса
+    r'[❯]\s*$',            # Unicode промпт
+]
+PROMPT_REGEX = re.compile('|'.join(PROMPT_PATTERNS), re.MULTILINE)
+
+
+def analyze_llm_state(output: str) -> str:
+    """
+    Анализ состояния LLM на основе вывода.
+    Возвращает: 'attention', 'idle', 'typing'
+    """
+    if not output:
+        return 'idle'
+
+    # Берём последние 500 символов для анализа
+    recent = output[-500:] if len(output) > 500 else output
+
+    # Убираем ANSI escape-последовательности для чистого анализа
+    ansi_escape = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
+    clean = ansi_escape.sub('', recent)
+
+    # Проверяем на паттерны требующие внимания
+    if ATTENTION_REGEX.search(clean):
+        return 'attention'
+
+    # Проверяем на промпт (ждёт ввода)
+    if PROMPT_REGEX.search(clean):
+        return 'idle'
+
+    # По умолчанию - typing (работает)
+    return 'typing'
 
 
 @dataclass
@@ -118,7 +183,8 @@ class ProcessManager:
 
     async def _notify_status(self, session: ProcessSession, status: str):
         """Уведомление о смене статуса (typing/idle)"""
-        for callback in session.status_callbacks:
+        # Copy list to prevent modification during iteration
+        for callback in list(session.status_callbacks):
             try:
                 await callback(status)
             except Exception:
@@ -152,8 +218,8 @@ class ProcessManager:
                         await add_terminal_output(session.session_id, buffer)
                         buffer = ""
 
-                    # Отправляем всем подписчикам
-                    for callback in session.output_callbacks:
+                    # Отправляем всем подписчикам (copy list to prevent modification during iteration)
+                    for callback in list(session.output_callbacks):
                         try:
                             await callback(data)
                         except Exception:
@@ -163,7 +229,9 @@ class ProcessManager:
                     if session.is_typing and session.last_output_time > 0:
                         if time.time() - session.last_output_time > session.IDLE_TIMEOUT:
                             session.is_typing = False
-                            await self._notify_status(session, "idle")
+                            # Анализируем состояние на основе вывода
+                            state = analyze_llm_state(session.output_history)
+                            await self._notify_status(session, state)
                     await asyncio.sleep(0.05)  # 50ms пауза если нет данных
             except Exception as e:
                 if session.running:
@@ -223,6 +291,9 @@ class ProcessManager:
         # Также удаляем из pending
         if project_id in self.pending_callbacks and callback in self.pending_callbacks[project_id]:
             self.pending_callbacks[project_id].remove(callback)
+            # Clean up empty pending lists
+            if not self.pending_callbacks[project_id]:
+                del self.pending_callbacks[project_id]
 
     def add_status_callback(
         self,
@@ -352,8 +423,8 @@ class ProcessManager:
                     if len(session.output_history) > session.MAX_HISTORY_SIZE:
                         session.output_history = session.output_history[-session.MAX_HISTORY_SIZE:]
 
-                    # Отправляем подписчикам
-                    for callback in session.output_callbacks:
+                    # Отправляем подписчикам (copy list to prevent modification during iteration)
+                    for callback in list(session.output_callbacks):
                         try:
                             await callback(data)
                         except Exception:
@@ -412,6 +483,9 @@ class ProcessManager:
             session.output_callbacks.remove(callback)
         if project_id in self.pending_console_callbacks and callback in self.pending_console_callbacks[project_id]:
             self.pending_console_callbacks[project_id].remove(callback)
+            # Clean up empty pending lists
+            if not self.pending_console_callbacks[project_id]:
+                del self.pending_console_callbacks[project_id]
 
     async def _stop_console_session(self, project_id: str):
         """Остановка консольной сессии"""
@@ -496,8 +570,8 @@ class ProcessManager:
                     if len(session.output_history) > session.MAX_HISTORY_SIZE:
                         session.output_history = session.output_history[-session.MAX_HISTORY_SIZE:]
 
-                    # Отправляем подписчикам
-                    for callback in session.output_callbacks:
+                    # Отправляем подписчикам (copy list to prevent modification during iteration)
+                    for callback in list(session.output_callbacks):
                         try:
                             await callback(data)
                         except Exception:
@@ -542,6 +616,7 @@ class ProcessManager:
             self.zeusovich_session.output_callbacks.remove(callback)
         if callback in self.pending_zeusovich_callbacks:
             self.pending_zeusovich_callbacks.remove(callback)
+            # Note: pending_zeusovich_callbacks is a flat list, not a dict, so no cleanup needed
 
     async def _stop_zeusovich_session(self):
         """Остановка сессии Zeusovich"""

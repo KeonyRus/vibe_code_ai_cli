@@ -249,7 +249,7 @@ body {
     50% { box-shadow: 0 0 12px 4px rgba(158, 206, 106, 0.2); }
 }
 
-/* LLM печатает */
+/* LLM печатает / работает */
 .project-card.typing .project-status {
     background: var(--accent-warning);
     box-shadow: 0 0 8px var(--accent-warning);
@@ -259,6 +259,24 @@ body {
 @keyframes blink {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.4; }
+}
+
+/* LLM требует внимания - ошибка или ждёт решения */
+.project-card.attention .project-status {
+    background: var(--accent-error);
+    box-shadow: 0 0 8px var(--accent-error);
+    animation: pulse-red 1s ease-in-out infinite;
+}
+
+@keyframes pulse-red {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 8px var(--accent-error);
+    }
+    50% {
+        opacity: 0.7;
+        box-shadow: 0 0 16px var(--accent-error);
+    }
 }
 
 .project-meta {

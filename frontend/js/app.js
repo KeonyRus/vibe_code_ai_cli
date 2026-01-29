@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let settings = {};
     let draggedCard = null;
     let statusPollInterval = null;
+    let selectProjectTimeout = null;
 
     // Elements
     const projectsList = document.getElementById('projects-list');
@@ -146,17 +147,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Handle LLM typing/idle status
+    // Handle LLM typing/idle/attention status
     terminalManager.onLLMStatus = (projectId, status) => {
         const card = document.querySelector(`.project-card[data-id="${projectId}"]`);
         if (!card) return;
 
+        // Убираем все статусные классы
+        card.classList.remove('typing', 'attention', 'has-response');
+
         if (status === 'typing') {
             card.classList.add('typing');
-            card.classList.remove('has-response');
+        } else if (status === 'attention') {
+            // Требует внимания - ошибка или ждёт решения (y/n)
+            card.classList.add('attention');
         } else if (status === 'idle') {
-            card.classList.remove('typing');
-            // Подсвечиваем зелёным только если это НЕ активный проект
+            // Ждёт ввода - подсвечиваем если не активный проект
             if (!currentProject || currentProject.id !== projectId) {
                 card.classList.add('has-response');
             }
@@ -307,8 +312,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Select project
+    // Select project with debounce to prevent race conditions
     async function selectProject(id) {
+        // Cancel pending selection
+        if (selectProjectTimeout) {
+            clearTimeout(selectProjectTimeout);
+        }
+
+        // Debounce: wait 50ms before actually selecting
+        selectProjectTimeout = setTimeout(() => {
+            doSelectProject(id);
+        }, 50);
+    }
+
+    // Actual project selection logic
+    async function doSelectProject(id) {
         const project = projects.find(p => p.id === id);
         if (!project) return;
 

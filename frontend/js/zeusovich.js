@@ -10,6 +10,7 @@ class ZeusovichManager {
         this.isRunning = false;
         this.newProjects = [];
         this._checkInterval = null;
+        this.lastSelection = '';  // Сохраняем выделение для Ctrl+C
     }
 
     init() {
@@ -54,6 +55,11 @@ class ZeusovichManager {
         // Open terminal
         this.terminal.open(this.container);
 
+        // Сохраняем выделение при изменении (для Ctrl+C)
+        this.terminal.onSelectionChange(() => {
+            this.lastSelection = this.terminal.getSelection();
+        });
+
         // Handle resize
         window.addEventListener('resize', () => this.fit());
 
@@ -71,9 +77,12 @@ class ZeusovichManager {
         this.terminal.attachCustomKeyEventHandler((e) => {
             // Ctrl+C - copy if there's selection, otherwise send to terminal
             if (e.ctrlKey && e.key === 'c' && e.type === 'keydown') {
-                const selection = this.terminal.getSelection();
-                if (selection) {
-                    navigator.clipboard.writeText(selection);
+                // Используем сохранённое выделение (Ctrl сбрасывает его до события)
+                if (this.lastSelection) {
+                    navigator.clipboard.writeText(this.lastSelection).then(() => {
+                        this.terminal.clearSelection();
+                        this.lastSelection = '';
+                    });
                     return false;
                 }
                 return true;
@@ -88,7 +97,7 @@ class ZeusovichManager {
                             data: text
                         }));
                     }
-                });
+                }).catch(() => {});  // Игнорируем ошибки доступа к clipboard
                 return false;
             }
 

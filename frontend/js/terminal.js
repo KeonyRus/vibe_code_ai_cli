@@ -9,6 +9,11 @@ class TerminalManager {
         this.ws = null;
         this.projectId = null;
         this.isRunning = false;
+        this.connectionId = null;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 3;
+        this.reconnectDelay = 1000;
+        this.lastSelection = '';  // Сохраняем выделение для Ctrl+C
     }
 
     init() {
@@ -54,6 +59,11 @@ class TerminalManager {
         this.terminal.open(this.container);
         this.fit();
 
+        // Сохраняем выделение при изменении (для Ctrl+C)
+        this.terminal.onSelectionChange(() => {
+            this.lastSelection = this.terminal.getSelection();
+        });
+
         // Handle resize
         window.addEventListener('resize', () => this.fit());
 
@@ -71,9 +81,12 @@ class TerminalManager {
         this.terminal.attachCustomKeyEventHandler((e) => {
             // Ctrl+C - copy if there's selection, otherwise send to terminal
             if (e.ctrlKey && e.key === 'c' && e.type === 'keydown') {
-                const selection = this.terminal.getSelection();
-                if (selection) {
-                    navigator.clipboard.writeText(selection);
+                // Используем сохранённое выделение (Ctrl сбрасывает его до события)
+                if (this.lastSelection) {
+                    navigator.clipboard.writeText(this.lastSelection).then(() => {
+                        this.terminal.clearSelection();
+                        this.lastSelection = '';
+                    });
                     return false; // Prevent default
                 }
                 // No selection - let it pass through as Ctrl+C to terminal
@@ -89,7 +102,7 @@ class TerminalManager {
                             data: text
                         }));
                     }
-                });
+                }).catch(() => {});  // Игнорируем ошибки доступа к clipboard
                 return false; // Prevent default
             }
 
@@ -128,6 +141,11 @@ class TerminalManager {
 
         this.projectId = projectId;
         this.hasHistory = false;
+        this.reconnectAttempts = 0;
+
+        // Generate unique connection ID to prevent race conditions
+        this.connectionId = Date.now() + Math.random();
+        const currentConnectionId = this.connectionId;
 
         // Clear terminal
         this.terminal.clear();
@@ -137,10 +155,16 @@ class TerminalManager {
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
+            // Ignore if connection changed
+            if (this.connectionId !== currentConnectionId) return;
+            this.reconnectAttempts = 0;
             this.fit();
         };
 
         this.ws.onmessage = (event) => {
+            // Ignore messages from old connections
+            if (this.connectionId !== currentConnectionId) return;
+
             const msg = JSON.parse(event.data);
 
             if (msg.type === 'output') {
@@ -169,22 +193,50 @@ class TerminalManager {
             }
         };
 
-        this.ws.onclose = () => {
-            this.terminal.writeln('');
-            this.terminal.writeln('\x1b[1;31mDisconnected\x1b[0m');
+        this.ws.onclose = (event) => {
+            // Ignore if connection changed
+            if (this.connectionId !== currentConnectionId) return;
+
             this.isRunning = false;
             this.onStatusChange(false);
+
+            // Don't reconnect if closed normally or max attempts reached
+            if (event.code === 1000 || this.reconnectAttempts >= this.maxReconnectAttempts) {
+                this.terminal.writeln('');
+                this.terminal.writeln('\x1b[1;31mDisconnected\x1b[0m');
+                this.reconnectAttempts = 0;
+                return;
+            }
+
+            // Auto-reconnect with backoff
+            this.reconnectAttempts++;
+            const delay = this.reconnectDelay * this.reconnectAttempts;
+            this.terminal.writeln('');
+            this.terminal.writeln(`\x1b[1;33mConnection lost. Reconnecting in ${delay/1000}s...\x1b[0m`);
+
+            setTimeout(() => {
+                // Only reconnect if still on same project
+                if (this.projectId === projectId && this.connectionId === currentConnectionId) {
+                    this.connect(projectId);
+                }
+            }, delay);
         };
 
         this.ws.onerror = (error) => {
+            // Ignore if connection changed
+            if (this.connectionId !== currentConnectionId) return;
             this.terminal.writeln(`\x1b[1;31mWebSocket error\x1b[0m`);
             console.error('WebSocket error:', error);
         };
     }
 
     disconnect() {
+        // Prevent auto-reconnect
+        this.reconnectAttempts = this.maxReconnectAttempts;
+        this.connectionId = null;
+
         if (this.ws) {
-            this.ws.close();
+            this.ws.close(1000);  // Normal closure code
             this.ws = null;
         }
         this.projectId = null;
